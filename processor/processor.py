@@ -14,7 +14,7 @@ async def on_message(message: aio_pika.IncomingMessage):
     async with message.process():
         body = message.body.decode()
         processed_message = await process_message(body)
-        connection = await aio_pika.connect_robust(host="172.26.0.4",port=5672)
+        connection = await aio_pika.connect_robust(host="rabbitmq",port=5672)
         channel = await connection.channel()
         await channel.declare_queue("output_queue")
         print(f"Sending processed message : {processed_message}")
@@ -28,11 +28,20 @@ async def on_message(message: aio_pika.IncomingMessage):
 
 
 async def main():
-    connection = await aio_pika.connect_robust(host="172.26.0.4",port=5672)
-    channel = await connection.channel()
-    input_queue = await channel.declare_queue("input_queue")
-    await channel.set_qos(prefetch_count=1)
-    await input_queue.consume(on_message)
+    started = False
+    while not started:
+        try: 
+            print("Main starting ..... ")
+            connection = await aio_pika.connect_robust(host="rabbitmq",port=5672)
+            channel = await connection.channel()
+            input_queue = await channel.declare_queue("input_queue")
+            print("Main running ..... ")
+            await channel.set_qos(prefetch_count=1)
+            await input_queue.consume(on_message)
+            started = True
+        except:
+          print("Some exception while connecting")
+          await asyncio.sleep(5)
 
 
 if __name__ == "__main__":
